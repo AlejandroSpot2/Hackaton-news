@@ -74,6 +74,14 @@ def evaluator_node(state: GraphState) -> dict:
 
     content_text = "\n\n".join(content_summary)
 
+    # Video branch: append analyzed video summaries as additional coverage signal
+    visual_analysis = state.get("visual_analysis", [])
+    video_text = ""
+    if visual_analysis:
+        video_text = f"\n\nANALYZED VIDEO CONTENT ({len(visual_analysis)} videos):\n"
+        for va in visual_analysis:
+            video_text += f"- Video: {va['video_title'][:80]}\n  Analysis: {va['analysis'][:200]}...\n"
+
     context_block = f"\nResearch context/focus: {context}\n" if context else ""
 
     prompt = f"""You are a senior news editor evaluating coverage quality.
@@ -83,7 +91,7 @@ REPORT OBJECTIVE: {objective}
 SEARCH ITERATIONS: {current_iterations} of {MAX_SEARCH_ITERATIONS} max
 
 COLLECTED CONTENT:
-{content_text}
+{content_text}{video_text}
 
 TOTAL: {len(topics_covered)} topics, {total_sources} sources
 SOURCES OUT OF DATE RANGE: {out_of_range} of {total_sources}
@@ -91,7 +99,7 @@ SOURCES OUT OF DATE RANGE: {out_of_range} of {total_sources}
 EVALUATE RIGOROUSLY:
 1. TOPIC COVERAGE: Do the topics cover the sub-topics of the objective? (e.g., if the objective mentions multiple areas, there should be at least one topic per area)
 2. DATA QUALITY: Are there concrete figures (amounts, percentages, specific companies)? A topic without hard data is weak.
-3. SOURCE DIVERSITY: Are there at least 2 distinct sources per topic? A topic with only 1 source is weak.
+3. SOURCE DIVERSITY: Are there at least 2 distinct sources per topic? A topic with only 1 source is weak. Analyzed videos count as additional coverage sources.
 4. TIMELINESS: If there are sources outside the date range, that reduces quality. Penalize proportionally.
 
 SUFFICIENCY CRITERIA:

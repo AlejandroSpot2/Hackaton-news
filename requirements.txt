@@ -8,6 +8,7 @@ beautifulsoup4
 lxml
 tqdm
 python-docx
+# Video processing — Reka Vision (REST API, only needs requests)
 # Testing dependencies
 pytest>=8.0.0
 pytest-mock>=3.12.0
