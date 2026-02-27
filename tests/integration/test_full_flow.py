@@ -134,13 +134,16 @@ class TestGraphCompilation:
             "evaluation": None,
             "search_iterations": 0,
             "digest": None,
+            "video_sources": [],
+            "visual_analysis": [],
         }
 
         # All required fields should be present
         required_fields = [
             "objective", "context", "start_date", "end_date",
             "exploration_results", "topics", "planning_reasoning",
-            "raw_content", "evaluation", "search_iterations", "digest"
+            "raw_content", "evaluation", "search_iterations", "digest",
+            "video_sources", "visual_analysis",
         ]
 
         for field in required_fields:
