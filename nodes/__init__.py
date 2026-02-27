@@ -7,6 +7,8 @@ from nodes.searcher import search_news_node
 from nodes.extractor import extract_content_node
 from nodes.evaluator import evaluator_node, should_search_more
 from nodes.analyst import analyze_news_node
+from nodes.video_searcher import video_searcher_node
+from nodes.visual_analyzer import visual_analyzer_node
 
 __all__ = [
     "explorer_node",
@@ -16,4 +18,6 @@ __all__ = [
     "evaluator_node",
     "should_search_more",
     "analyze_news_node",
+    "video_searcher_node",
+    "visual_analyzer_node",
 ]

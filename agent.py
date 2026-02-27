@@ -22,6 +22,8 @@ from nodes import (
     evaluator_node,
     should_search_more,
     analyze_news_node,
+    video_searcher_node,
+    visual_analyzer_node,
 )
 
 
@@ -49,17 +51,30 @@ workflow.add_node("buscador", search_news_node)
 workflow.add_node("extractor", extract_content_node)
 workflow.add_node("evaluador", evaluator_node)
 workflow.add_node("analista", analyze_news_node)
+workflow.add_node("buscador_video", video_searcher_node)
+workflow.add_node("analizador_visual", visual_analyzer_node)
 
 # Set entry point
 workflow.set_entry_point("explorador")
 
 # Define edges
 workflow.add_edge("explorador", "planificador")
-workflow.add_edge("planificador", "buscador")
-workflow.add_edge("buscador", "extractor")
-workflow.add_edge("extractor", "evaluador")
 
-# Conditional edge from evaluator
+# FAN-OUT: planificador launches both branches in parallel
+workflow.add_edge("planificador", "buscador")
+workflow.add_edge("planificador", "buscador_video")
+
+# Text branch
+workflow.add_edge("buscador", "extractor")
+
+# Video branch
+workflow.add_edge("buscador_video", "analizador_visual")
+
+# FAN-IN: evaluador waits for both extractor and analizador_visual
+workflow.add_edge("extractor", "evaluador")
+workflow.add_edge("analizador_visual", "evaluador")
+
+# Conditional edge from evaluator — retry only re-runs text branch, never video
 workflow.add_conditional_edges(
     "evaluador",
     should_search_more,
@@ -114,6 +129,8 @@ def run_agent(
         "evaluation": None,
         "search_iterations": 0,
         "digest": None,
+        "video_sources": [],
+        "visual_analysis": [],
     }
     
     print(f"\n{'='*60}")

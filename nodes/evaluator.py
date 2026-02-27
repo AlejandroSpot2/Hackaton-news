@@ -82,6 +82,13 @@ def evaluator_node(state: GraphState) -> dict:
 
     content_text = "\n\n".join(content_summary)
 
+    visual_analysis = state.get("visual_analysis", [])
+    video_text = ""
+    if visual_analysis:
+        video_text = f"\n\nCONTENIDO DE VIDEO ANALIZADO ({len(visual_analysis)} videos):\n"
+        for va in visual_analysis:
+            video_text += f"- Video: {va['video_title'][:80]}\n  Análisis: {va['analysis'][:200]}...\n"
+
     prompt = f"""Eres un editor senior de noticias evaluando la cobertura de un reporte del sector inmobiliario comercial (CRE) de México.
 
 OBJETIVO DEL REPORTE: {objective}
@@ -89,7 +96,7 @@ PERIODO REQUERIDO: {start_date} a {end_date}
 ITERACIONES DE BÚSQUEDA: {current_iterations} de {MAX_SEARCH_ITERATIONS} máximo
 
 CONTENIDO RECOPILADO:
-{content_text}
+{content_text}{video_text}
 
 TOTAL: {len(topics_covered)} temas, {total_sources} fuentes
 FUENTES FUERA DE RANGO DE FECHAS: {out_of_range} de {total_sources}
@@ -97,7 +104,7 @@ FUENTES FUERA DE RANGO DE FECHAS: {out_of_range} de {total_sources}
 EVALÚA CON RIGOR:
 1. COBERTURA TEMÁTICA: ¿Los temas cubren los sub-temas del objetivo? (ej: si el objetivo menciona "parques industriales, oficinas y logística", debe haber al menos un tema por sub-sector)
 2. CALIDAD DE DATOS: ¿Hay cifras concretas (m², montos en USD/MXN, porcentajes, tasas de vacancia)? Un tema sin datos duros es débil.
-3. DIVERSIDAD DE FUENTES: ¿Hay al menos 2 fuentes distintas por tema? Un tema con solo 1 fuente es débil.
+3. DIVERSIDAD DE FUENTES: ¿Hay al menos 2 fuentes distintas por tema? Un tema con solo 1 fuente es débil. Los videos analizados cuentan como fuentes adicionales de cobertura.
 4. VIGENCIA: Si hay fuentes fuera del rango de fechas, eso reduce la calidad. Penaliza proporcionalmente.
 
 CRITERIOS DE SUFICIENCIA:

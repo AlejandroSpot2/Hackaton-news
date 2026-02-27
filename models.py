@@ -1,7 +1,8 @@
 """
 Pydantic models for the News Bot agent.
 """
-from typing import TypedDict
+import operator
+from typing import Annotated, TypedDict
 
 from pydantic import BaseModel, Field
 
@@ -10,11 +11,20 @@ from pydantic import BaseModel, Field
 # Pydantic Models for Structured LLM Output
 # =============================================================================
 
+class VisualInsight(BaseModel):
+    """Analysis of a video from Reka Vision."""
+    video_url: str
+    video_title: str
+    analysis: str
+    source_topic: str = ""
+
+
 class TopicSection(BaseModel):
     """A section of the news digest for a single topic."""
     title: str
     article: str
-    sources: list[str] = Field(description="URLs de fuentes externas (noticias)")
+    sources: list[str] = Field(description="URLs de fuentes externas (noticias y videos)")
+    visual_insights: list[VisualInsight] = Field(default_factory=list, description="Análisis de contenido de video relacionado")
 
 
 class NewsDigest(BaseModel):
@@ -78,6 +88,10 @@ class GraphState(TypedDict):
     
     # Final output
     digest: NewsDigest | None
+
+    # Video branch fields (Annotated with operator.add for parallel fan-in merge)
+    video_sources: Annotated[list[dict], operator.add]
+    visual_analysis: Annotated[list[dict], operator.add]
 
 
 # =============================================================================
