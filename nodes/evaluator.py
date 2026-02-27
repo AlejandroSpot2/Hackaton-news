@@ -47,9 +47,10 @@ def evaluator_node(state: GraphState) -> dict:
     Returns:
         Dictionary with Evaluation result
     """
-    print("--- EVALUANDO COBERTURA ---")
+    print("--- EVALUATING COVERAGE ---")
 
-    objective = state.get("objective", "noticias del sector inmobiliario comercial México")
+    objective = state.get("objective", "general news")
+    context = state.get("context", "")
     raw_content = state.get("raw_content", [])
     current_iterations = state.get("search_iterations", 0)
     start_date = state.get("start_date", "")
@@ -69,52 +70,54 @@ def evaluator_node(state: GraphState) -> dict:
                 out_of_range += 1
 
     if out_of_range:
-        print(f"  -> Fuentes fuera de rango: {out_of_range}/{total_sources}")
+        print(f"  -> Sources out of range: {out_of_range}/{total_sources}")
 
     # Build content summary for evaluation (include dates)
     content_summary = []
     for item in raw_content:
         sources_text = "\n".join([
-            f"  - [{s.get('published_date', 'sin fecha')}] {s['title'][:100]}"
+            f"  - [{s.get('published_date', 'no date')}] {s['title'][:100]}"
             for s in item["sources"][:3]
         ])
-        content_summary.append(f"Tema: {item['topic']}\nFuentes:\n{sources_text}")
+        content_summary.append(f"Topic: {item['topic']}\nSources:\n{sources_text}")
 
     content_text = "\n\n".join(content_summary)
 
-    prompt = f"""Eres un editor senior de noticias evaluando la cobertura de un reporte del sector inmobiliario comercial (CRE) de México.
+    context_block = f"\nResearch context/focus: {context}\n" if context else ""
 
-OBJETIVO DEL REPORTE: {objective}
-PERIODO REQUERIDO: {start_date} a {end_date}
-ITERACIONES DE BÚSQUEDA: {current_iterations} de {MAX_SEARCH_ITERATIONS} máximo
+    prompt = f"""You are a senior news editor evaluating coverage quality.
 
-CONTENIDO RECOPILADO:
+REPORT OBJECTIVE: {objective}
+{context_block}REQUIRED PERIOD: {start_date} to {end_date}
+SEARCH ITERATIONS: {current_iterations} of {MAX_SEARCH_ITERATIONS} max
+
+COLLECTED CONTENT:
 {content_text}
 
-TOTAL: {len(topics_covered)} temas, {total_sources} fuentes
-FUENTES FUERA DE RANGO DE FECHAS: {out_of_range} de {total_sources}
+TOTAL: {len(topics_covered)} topics, {total_sources} sources
+SOURCES OUT OF DATE RANGE: {out_of_range} of {total_sources}
 
-EVALÚA CON RIGOR:
-1. COBERTURA TEMÁTICA: ¿Los temas cubren los sub-temas del objetivo? (ej: si el objetivo menciona "parques industriales, oficinas y logística", debe haber al menos un tema por sub-sector)
-2. CALIDAD DE DATOS: ¿Hay cifras concretas (m², montos en USD/MXN, porcentajes, tasas de vacancia)? Un tema sin datos duros es débil.
-3. DIVERSIDAD DE FUENTES: ¿Hay al menos 2 fuentes distintas por tema? Un tema con solo 1 fuente es débil.
-4. VIGENCIA: Si hay fuentes fuera del rango de fechas, eso reduce la calidad. Penaliza proporcionalmente.
+EVALUATE RIGOROUSLY:
+1. TOPIC COVERAGE: Do the topics cover the sub-topics of the objective? (e.g., if the objective mentions multiple areas, there should be at least one topic per area)
+2. DATA QUALITY: Are there concrete figures (amounts, percentages, specific companies)? A topic without hard data is weak.
+3. SOURCE DIVERSITY: Are there at least 2 distinct sources per topic? A topic with only 1 source is weak.
+4. TIMELINESS: If there are sources outside the date range, that reduces quality. Penalize proportionally.
 
-CRITERIOS DE SUFICIENCIA:
-- SUFICIENTE: >= 3 temas sólidos (con datos concretos + >= 2 fuentes cada uno) que cubran los sub-sectores del objetivo
-- INSUFICIENTE: < 3 temas sólidos, O un sub-sector del objetivo sin cobertura, O mayoría de fuentes fuera de rango
+SUFFICIENCY CRITERIA:
+- SUFFICIENT: >= 3 solid topics (with concrete data + >= 2 sources each) covering the objective's sub-areas
+- INSUFFICIENT: < 3 solid topics, OR a sub-area of the objective without coverage, OR majority of sources out of range
 
-Si la cobertura es insuficiente Y quedan iteraciones, sugiere 1-2 búsquedas adicionales enfocadas en lo que falta.
-Si ya se alcanzó el máximo de iteraciones, marca is_sufficient=True.
+If coverage is insufficient AND iterations remain, suggest 1-2 additional focused searches for what's missing.
+If max iterations reached, mark is_sufficient=True.
 """
 
     evaluation = model.with_structured_output(Evaluation).invoke(prompt)
 
-    status = "SUFICIENTE" if evaluation.is_sufficient else "NECESITA MAS"
-    print(f"  -> Evaluacion: {status}")
+    status = "SUFFICIENT" if evaluation.is_sufficient else "NEEDS MORE"
+    print(f"  -> Evaluation: {status}")
     if not evaluation.is_sufficient and evaluation.missing_topics:
         topics_str = str(evaluation.missing_topics).encode("ascii", "replace").decode()
-        print(f"  -> Temas faltantes: {topics_str}")
+        print(f"  -> Missing topics: {topics_str}")
 
     return {"evaluation": evaluation}
 
@@ -142,12 +145,11 @@ def should_search_more(state: GraphState) -> str:
 
     # Hit max iterations? Go to analyst anyway
     if current_iterations >= MAX_SEARCH_ITERATIONS:
-        print(f"  -> Límite de iteraciones alcanzado ({MAX_SEARCH_ITERATIONS})")
+        print(f"  -> Iteration limit reached ({MAX_SEARCH_ITERATIONS})")
         return "analista"
 
     # Need more search - update topics with missing ones
     if evaluation.missing_topics:
-        # The missing topics will be searched in the next iteration
-        print(f"  -> Buscando {len(evaluation.missing_topics)} temas adicionales")
+        print(f"  -> Searching {len(evaluation.missing_topics)} additional topics")
 
     return "buscador"

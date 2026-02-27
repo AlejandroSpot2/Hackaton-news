@@ -17,63 +17,66 @@ model = ChatOpenAI(model="gpt-5-mini-2025-08-07", temperature=0.0)
 def planner_node(state: GraphState) -> dict:
     """
     Analyze exploration results and generate specific search topics.
-    
+
     This node receives real news data from the explorer and decides
     which topics deserve deeper investigation based on relevance,
     data richness, and alignment with the objective.
-    
+
     Args:
         state: Current graph state containing exploration_results and objective
-        
+
     Returns:
         Dictionary with topics list and planning_reasoning
     """
-    print("--- PLANIFICANDO BUSQUEDAS ---")
-    
+    print("--- PLANNING SEARCHES ---")
+
     exploration_data = state.get("exploration_results", [])
-    objective = state.get("objective", "noticias del sector inmobiliario comercial México")
-    
+    objective = state.get("objective", "general news")
+    context = state.get("context", "")
+
     # Format exploration results for the prompt
     headlines_text = "\n".join([
         f"- {item['title']}: {item['snippet'][:200]}..."
         for item in exploration_data
     ])
-    
-    prompt = f"""Eres un analista de mercado inmobiliario en México.
 
-OBJETIVO DEL REPORTE: {objective}
+    context_block = f"\nContext/focus: {context}\n" if context else ""
 
-TITULARES Y NOTICIAS ENCONTRADAS:
+    prompt = f"""You are a professional news research analyst.
+
+REPORT OBJECTIVE: {objective}
+{context_block}
+HEADLINES AND NEWS FOUND:
 {headlines_text}
 
-TAREA:
-Basándote en los titulares REALES, genera 3-5 búsquedas específicas para profundizar.
+TASK:
+Based on the REAL headlines above, generate 3-5 specific search queries to investigate further.
 
-REGLAS CRÍTICAS PARA LOS TOPICS:
-- Cada topic debe ser UN QUERY DE BÚSQUEDA CORTO (máximo 50-60 caracteres)
-- NO incluyas explicaciones ni razonamientos en los topics
-- El razonamiento va SOLO en el campo "reasoning", NO en los topics
-- Los topics son SOLO las frases de búsqueda
+CRITICAL RULES FOR TOPICS:
+- Each topic must be A SHORT SEARCH QUERY (max 50-60 characters)
+- Do NOT include explanations or reasoning in the topics
+- Reasoning goes ONLY in the "reasoning" field, NOT in the topics
+- Topics are ONLY the search phrases
 
-EJEMPLOS CORRECTOS de topics:
-- "Nearshoring parques industriales México 2026"
-- "Vacancia oficinas Reforma CDMX 2026"
-- "Amazon centro distribución Guadalajara"
-- "Inversión industrial Monterrey nearshoring"
+CORRECT topic examples:
+- "AI regulation updates 2026"
+- "Tesla factory expansion Germany"
+- "Federal Reserve interest rate decision"
+- "Climate summit agreements COP31"
 
-EJEMPLOS INCORRECTOS (NO hagas esto):
-- "1) Nearshoring como motor... Razonamiento: el titular indica..." (MUY LARGO)
-- "Búsqueda sobre inversiones en parques industriales considerando que..." (MUY LARGO)
+INCORRECT topic examples (DO NOT do this):
+- "1) AI regulation as a driver... Reasoning: the headline indicates..." (TOO LONG)
+- "Search about investments in renewable energy considering that..." (TOO LONG)
 
-Prioriza noticias con datos concretos (USD, m², empresas específicas).
+Prioritize news with concrete data (figures, companies, specific locations).
 """
-    
+
     plan = model.with_structured_output(SearchPlan).invoke(prompt)
-    
-    print(f"  -> Temas seleccionados: {len(plan.topics)}")
+
+    print(f"  -> Topics selected: {len(plan.topics)}")
     for i, topic in enumerate(plan.topics, 1):
         print(f"     {i}. {topic}")
-    
+
     return {
         "topics": plan.topics,
         "planning_reasoning": plan.reasoning

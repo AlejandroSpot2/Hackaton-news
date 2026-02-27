@@ -15,7 +15,7 @@ class TestToMarkdown:
     def test_contains_title(self, sample_report_output):
         """Markdown output should have the main heading."""
         md = to_markdown(sample_report_output)
-        assert "# Reporte de Noticias" in md
+        assert "# News Research Report" in md
 
     def test_contains_section_headings(self, sample_report_output):
         """Each digest section should appear as an h2."""
@@ -44,7 +44,7 @@ class TestToPlaintext:
     def test_contains_header(self, sample_report_output):
         """Plain-text output should have the report header."""
         txt = to_plaintext(sample_report_output)
-        assert "REPORTE DE NOTICIAS" in txt
+        assert "NEWS RESEARCH REPORT" in txt
 
     def test_contains_section_titles(self, sample_report_output):
         """Each section title should appear in the output."""
@@ -80,7 +80,7 @@ class TestConvertFunction:
         result_paths = convert(str(json_file), fmt="md", output_path=str(output_file))
         assert result_paths[0].endswith(".md")
         content = output_file.read_text(encoding="utf-8")
-        assert "# Reporte de Noticias" in content
+        assert "# News Research Report" in content
 
     def test_convert_to_txt(self, sample_report_output, tmp_path):
         """convert() should create a .txt file."""
@@ -93,7 +93,7 @@ class TestConvertFunction:
         result_paths = convert(str(json_file), fmt="txt", output_path=str(output_file))
         assert result_paths[0].endswith(".txt")
         content = output_file.read_text(encoding="utf-8")
-        assert "REPORTE DE NOTICIAS" in content
+        assert "NEWS RESEARCH REPORT" in content
 
     def test_convert_custom_output_path(self, sample_report_output, tmp_path):
         """convert() should honour a custom output path."""
@@ -119,7 +119,7 @@ class TestConvertFunction:
             sample_report_output.model_dump_json(indent=2), encoding="utf-8"
         )
 
-        with pytest.raises(ValueError, match="Formato no soportado"):
+        with pytest.raises(ValueError, match="Unsupported format"):
             convert(str(json_file), fmt="html")
 
     def test_roundtrip_json_to_md(self, sample_report_output, tmp_path):
