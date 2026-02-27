@@ -6,10 +6,14 @@ An autonomous agent that:
 2. Plans specific searches based on real data
 3. Performs deep searches on selected topics
 4. Extracts full content from sources
-5. Evaluates coverage and loops if needed
-6. Generates a structured news digest
+5. Enriches articles with Pioneer AI entity extraction
+6. Evaluates coverage and loops if needed
+7. Generates a structured news digest
 """
+import warnings
 from datetime import datetime
+
+warnings.filterwarnings("ignore", message="Pydantic serializer warnings")
 
 from langgraph.graph import StateGraph, END
 
@@ -19,6 +23,7 @@ from nodes import (
     planner_node,
     search_news_node,
     extract_content_node,
+    enrich_content_node,
     evaluator_node,
     should_search_more,
     analyze_news_node,
@@ -49,7 +54,9 @@ workflow.add_node("explorador", explorer_node)
 workflow.add_node("planificador", planner_node)
 workflow.add_node("buscador", search_news_node)
 workflow.add_node("extractor", extract_content_node)
+workflow.add_node("enriquecedor", enrich_content_node)
 workflow.add_node("evaluador", evaluator_node)
+workflow.add_node("actualizador_topics", update_topics_for_retry)
 workflow.add_node("analista", analyze_news_node)
 workflow.add_node("buscador_video", video_searcher_node)
 workflow.add_node("analizador_visual", visual_analyzer_node)
@@ -64,14 +71,15 @@ workflow.add_edge("explorador", "planificador")
 workflow.add_edge("planificador", "buscador")
 workflow.add_edge("planificador", "buscador_video")
 
-# Text branch
+# Text branch: buscador -> extractor -> enriquecedor (Pioneer AI)
 workflow.add_edge("buscador", "extractor")
+workflow.add_edge("extractor", "enriquecedor")
 
 # Video branch
 workflow.add_edge("buscador_video", "analizador_visual")
 
-# FAN-IN: evaluador waits for both extractor and analizador_visual
-workflow.add_edge("extractor", "evaluador")
+# FAN-IN: evaluador waits for both enriquecedor and analizador_visual
+workflow.add_edge("enriquecedor", "evaluador")
 workflow.add_edge("analizador_visual", "evaluador")
 
 # Conditional edge from evaluator — retry only re-runs text branch, never video
@@ -79,11 +87,12 @@ workflow.add_conditional_edges(
     "evaluador",
     should_search_more,
     {
-        "buscador": "buscador",
-        "analista": "analista"
+        "buscador": "actualizador_topics",
+        "analista": "analista",
     }
 )
 
+workflow.add_edge("actualizador_topics", "buscador")
 workflow.add_edge("analista", END)
 
 # Compile the graph
@@ -107,8 +116,9 @@ def run_agent(
     1. Explore current news
     2. Plan what to search
     3. Search and extract content
-    4. Evaluate and possibly iterate
-    5. Generate the final digest
+    4. Enrich with Pioneer AI entities
+    5. Evaluate and possibly iterate
+    6. Generate the final digest
 
     Args:
         objective: High-level description of what news to find
