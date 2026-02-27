@@ -1,0 +1,198 @@
+"""
+News Bot - LangGraph Agent for Mexico CRE Sector News
+
+An autonomous agent that:
+1. Explores current news to understand what's happening
+2. Plans specific searches based on real data
+3. Performs deep searches on selected topics
+4. Extracts full content from sources
+5. Evaluates coverage and loops if needed
+6. Generates a structured news digest
+"""
+from datetime import datetime
+
+from langgraph.graph import StateGraph, END
+
+from models import GraphState, NewsDigest, ReportOutput
+from nodes import (
+    explorer_node,
+    planner_node,
+    search_news_node,
+    extract_content_node,
+    evaluator_node,
+    should_search_more,
+    analyze_news_node,
+)
+
+
+def update_topics_for_retry(state: GraphState) -> dict:
+    """
+    Helper node to update topics from evaluator's missing_topics.
+    Called when evaluator decides more search is needed.
+    """
+    evaluation = state.get("evaluation")
+    if evaluation and evaluation.missing_topics:
+        return {"topics": evaluation.missing_topics}
+    return {}
+
+
+# =============================================================================
+# Build the Graph
+# =============================================================================
+
+workflow = StateGraph(GraphState)
+
+# Add all nodes
+workflow.add_node("explorador", explorer_node)
+workflow.add_node("planificador", planner_node)
+workflow.add_node("buscador", search_news_node)
+workflow.add_node("extractor", extract_content_node)
+workflow.add_node("evaluador", evaluator_node)
+workflow.add_node("analista", analyze_news_node)
+
+# Set entry point
+workflow.set_entry_point("explorador")
+
+# Define edges
+workflow.add_edge("explorador", "planificador")
+workflow.add_edge("planificador", "buscador")
+workflow.add_edge("buscador", "extractor")
+workflow.add_edge("extractor", "evaluador")
+
+# Conditional edge from evaluator
+workflow.add_conditional_edges(
+    "evaluador",
+    should_search_more,
+    {
+        "buscador": "buscador",
+        "analista": "analista"
+    }
+)
+
+workflow.add_edge("analista", END)
+
+# Compile the graph
+app = workflow.compile()
+
+
+# =============================================================================
+# Public API
+# =============================================================================
+
+def run_agent(
+    objective: str,
+    start_date: str,
+    end_date: str,
+) -> NewsDigest | None:
+    """
+    Run the news agent with a high-level objective.
+    
+    The agent will autonomously:
+    1. Explore current news
+    2. Plan what to search
+    3. Search and extract content
+    4. Evaluate and possibly iterate
+    5. Generate the final digest
+    
+    Args:
+        objective: High-level description of what news to find
+                   e.g., "Noticias del sector inmobiliario comercial en México"
+        start_date: Start date for news search (YYYY-MM-DD)
+        end_date: End date for news search (YYYY-MM-DD)
+        
+    Returns:
+        NewsDigest with the structured report, or None if failed
+    """
+    inputs: GraphState = {
+        "objective": objective,
+        "start_date": start_date,
+        "end_date": end_date,
+        "exploration_results": [],
+        "topics": [],
+        "planning_reasoning": "",
+        "raw_content": [],
+        "evaluation": None,
+        "search_iterations": 0,
+        "digest": None,
+    }
+    
+    print(f"\n{'='*60}")
+    print(f"AGENTE DE NOTICIAS - SECTOR CRE MEXICO")
+    print(f"{'='*60}")
+    print(f"Objetivo: {objective}")
+    print(f"Periodo: {start_date} a {end_date}")
+    print(f"{'='*60}\n")
+    
+    final_state = None
+    for output in app.stream(inputs):
+        for key, value in output.items():
+            print(f"[OK] Nodo completado: {key}")
+            if key == "analista":
+                final_state = value
+    
+    return final_state.get("digest") if final_state else None
+
+
+def save_report(
+    digest: NewsDigest,
+    objective: str,
+    start_date: str,
+    end_date: str,
+    filename: str = "reporte.json",
+) -> ReportOutput:
+    """
+    Save the digest as a JSON report using Pydantic serialization.
+    
+    Args:
+        digest: The NewsDigest to save
+        objective: The search objective used for this run
+        start_date: Start of the news search window
+        end_date: End of the news search window
+        filename: Output filename (default: reporte.json)
+        
+    Returns:
+        The ReportOutput model that was saved
+    """
+    report = ReportOutput(
+        generated_at=datetime.now().isoformat(),
+        objective=objective,
+        period_start=start_date,
+        period_end=end_date,
+        digest=digest,
+    )
+    
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(report.model_dump_json(indent=2))
+    
+    print(f"[SAVE] Guardado en: {filename}")
+    return report
+
+
+# =============================================================================
+# Main Entry Point
+# =============================================================================
+
+if __name__ == "__main__":
+    # Example usage with autonomous objective
+    objective = "Noticias del sector inmobiliario comercial en México: parques industriales, oficinas corporativas, y desarrollos logísticos"
+    start_date = "2026-02-07"
+    end_date = "2026-02-16"
+    
+    digest = run_agent(
+        objective=objective,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    
+    if digest:
+        print(f"\n{'='*60}")
+        print("REPORTE GENERADO")
+        print(f"{'='*60}\n")
+        
+        for section in digest.sections:
+            print(f">> {section.title}")
+            print(f"   {section.article[:150]}...")
+            print(f"   Fuentes externas: {len(section.sources)}")
+            print()
+        
+        save_report(digest, objective, start_date, end_date)

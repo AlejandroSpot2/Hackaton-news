@@ -1,0 +1,13 @@
+# Core dependencies
+tavily-python
+python-dotenv
+langchain-openai
+langgraph
+requests
+beautifulsoup4
+lxml
+tqdm
+python-docx
+# Testing dependencies
+pytest>=8.0.0
+pytest-mock>=3.12.0
