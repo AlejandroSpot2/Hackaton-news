@@ -10,7 +10,6 @@ from models import GraphState, SearchPlan
 
 load_dotenv()
 
-# Initialize model
 model = ChatOpenAI(model="gpt-5-mini-2025-08-07", temperature=0.0)
 
 
@@ -34,7 +33,6 @@ def planner_node(state: GraphState) -> dict:
     objective = state.get("objective", "general news")
     context = state.get("context", "")
 
-    # Format exploration results for the prompt
     headlines_text = "\n".join([
         f"- {item['title']}: {item['snippet'][:200]}..."
         for item in exploration_data

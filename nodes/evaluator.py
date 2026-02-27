@@ -1,5 +1,6 @@
 """
 Evaluator node - assesses coverage quality and decides if more search is needed.
+Uses OpenAI for evaluation (Pioneer evaluator model pending fix).
 """
 import os
 from datetime import datetime
@@ -12,14 +13,13 @@ from models import GraphState, Evaluation, MAX_SEARCH_ITERATIONS
 
 load_dotenv()
 
-# Initialize model
 model = ChatOpenAI(model="gpt-5-mini-2025-08-07", temperature=0.0)
 
 
 def _is_within_range(pub_date_str: str, start: str, end: str) -> bool:
     """Check if a published_date falls within [start, end]."""
     if not pub_date_str:
-        return True  # no date = benefit of the doubt
+        return True
     try:
         pub = parsedate_to_datetime(pub_date_str).date()
         return (
@@ -28,18 +28,12 @@ def _is_within_range(pub_date_str: str, start: str, end: str) -> bool:
             <= datetime.strptime(end, "%Y-%m-%d").date()
         )
     except (ValueError, TypeError):
-        return True  # unparseable = keep
+        return True
 
 
 def evaluator_node(state: GraphState) -> dict:
     """
     Evaluate if the search results provide sufficient coverage.
-
-    This node analyzes the collected content and determines if:
-    - The objective is adequately covered
-    - There's enough concrete data (numbers, companies, dates)
-    - Important angles are missing
-    - Sources fall within the required date range
 
     Args:
         state: Current graph state containing raw_content and objective
@@ -56,10 +50,8 @@ def evaluator_node(state: GraphState) -> dict:
     start_date = state.get("start_date", "")
     end_date = state.get("end_date", "")
 
-    # Summarize what we have
     topics_covered = [item["topic"] for item in raw_content]
 
-    # Count sources and flag out-of-range ones
     total_sources = 0
     out_of_range = 0
     for item in raw_content:
@@ -72,7 +64,6 @@ def evaluator_node(state: GraphState) -> dict:
     if out_of_range:
         print(f"  -> Sources out of range: {out_of_range}/{total_sources}")
 
-    # Build content summary for evaluation (include dates)
     content_summary = []
     for item in raw_content:
         sources_text = "\n".join([
@@ -135,20 +126,16 @@ def should_search_more(state: GraphState) -> str:
     evaluation = state.get("evaluation")
     current_iterations = state.get("search_iterations", 0)
 
-    # No evaluation? Go to analyst
     if not evaluation:
         return "analista"
 
-    # Coverage is sufficient? Go to analyst
     if evaluation.is_sufficient:
         return "analista"
 
-    # Hit max iterations? Go to analyst anyway
     if current_iterations >= MAX_SEARCH_ITERATIONS:
         print(f"  -> Iteration limit reached ({MAX_SEARCH_ITERATIONS})")
         return "analista"
 
-    # Need more search - update topics with missing ones
     if evaluation.missing_topics:
         print(f"  -> Searching {len(evaluation.missing_topics)} additional topics")
 

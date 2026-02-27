@@ -73,6 +73,48 @@ def sample_raw_content():
 
 
 @pytest.fixture
+def sample_enriched_raw_content():
+    """Sample raw_content after enrichment with Pioneer entities."""
+    return [
+        {
+            "topic": "AI regulation EU 2026",
+            "sources": [
+                {
+                    "url": "https://reuters.com/tech/ai-regulation",
+                    "title": "EU AI Act enforcement begins",
+                    "content": "The European Union's AI Act enters its enforcement phase...",
+                    "entities": {
+                        "ORGANIZATION": ["European Union", "European Parliament"],
+                        "LOCATION": ["EU"],
+                    },
+                },
+                {
+                    "url": "https://bbc.com/tech/ai-rules",
+                    "title": "New AI safety requirements take effect",
+                    "content": "Companies must now comply with strict AI transparency rules...",
+                    "entities": {},
+                }
+            ]
+        },
+        {
+            "topic": "Tesla Gigafactory Southeast Asia",
+            "sources": [
+                {
+                    "url": "https://bloomberg.com/auto/tesla-sea",
+                    "title": "Tesla expands manufacturing footprint",
+                    "content": "Tesla's new $4.2B facility in Indonesia will produce 500,000 vehicles annually...",
+                    "entities": {
+                        "ORGANIZATION": ["Tesla"],
+                        "LOCATION": ["Indonesia", "Southeast Asia"],
+                        "MONEY": ["$4.2B"],
+                    },
+                }
+            ]
+        }
+    ]
+
+
+@pytest.fixture
 def sample_state(sample_exploration_results, sample_raw_content):
     """Complete GraphState for integration tests."""
     return GraphState(
@@ -154,6 +196,17 @@ def sample_evaluation_insufficient():
     )
 
 
+@pytest.fixture
+def sample_pioneer_enricher_entities():
+    """Mock Pioneer entity extraction response for the enricher."""
+    return [
+        {"label": "ORGANIZATION", "text": "Tesla"},
+        {"label": "LOCATION", "text": "Indonesia"},
+        {"label": "MONEY", "text": "$4.2 billion"},
+        {"label": "PERSON", "text": "Elon Musk"},
+    ]
+
+
 # =============================================================================
 # Mock Fixtures
 # =============================================================================
@@ -205,7 +258,6 @@ def mock_tavily(monkeypatch, mock_tavily_search_response, mock_tavily_extract_re
     mock_client.search.return_value = mock_tavily_search_response
     mock_client.extract.return_value = mock_tavily_extract_response
 
-    # Patch in all node modules that use Tavily
     monkeypatch.setattr("nodes.explorer.tavily", mock_client)
     monkeypatch.setattr("nodes.searcher.tavily", mock_client)
     monkeypatch.setattr("nodes.extractor.tavily", mock_client)
@@ -213,60 +265,92 @@ def mock_tavily(monkeypatch, mock_tavily_search_response, mock_tavily_extract_re
     return mock_client
 
 
+def _make_openai_mock(
+    search_plan,
+    evaluation,
+    digest,
+    pioneer_entities,
+):
+    """
+    Build mocks for OpenAI (planner, evaluator, analyst) and Pioneer (enricher).
+
+    Returns a dict with 'openai_planner', 'openai_evaluator', 'openai_analyst',
+    and 'pioneer_enricher' mocks.
+    """
+    def _build_model(return_map):
+        mock_model = MagicMock()
+
+        def _with_structured_output(output_type):
+            mock_chain = MagicMock()
+            mock_chain.invoke.return_value = return_map.get(output_type)
+            return mock_chain
+
+        mock_model.with_structured_output = _with_structured_output
+        return mock_model
+
+    planner_model = _build_model({SearchPlan: search_plan})
+    evaluator_model = _build_model({Evaluation: evaluation})
+    analyst_model = _build_model({NewsDigest: digest})
+
+    pioneer_mock = MagicMock(return_value=pioneer_entities)
+
+    return {
+        "planner": planner_model,
+        "evaluator": evaluator_model,
+        "analyst": analyst_model,
+        "pioneer_enricher": pioneer_mock,
+    }
+
+
 @pytest.fixture
-def mock_openai(monkeypatch, sample_search_plan, sample_evaluation_sufficient, sample_digest):
+def mock_openai(
+    monkeypatch,
+    sample_search_plan,
+    sample_evaluation_sufficient,
+    sample_digest,
+    sample_pioneer_enricher_entities,
+):
     """
-    Mock ChatOpenAI to return predictable responses.
+    Mock OpenAI for planner, evaluator, analyst + Pioneer for enricher.
 
-    Usage:
-        def test_something(mock_openai):
-            # OpenAI calls are now mocked
-            result = planner_node(state)
+    This is the standard fixture used by most tests.
     """
-    mock_model = MagicMock()
+    mocks = _make_openai_mock(
+        sample_search_plan,
+        sample_evaluation_sufficient,
+        sample_digest,
+        sample_pioneer_enricher_entities,
+    )
 
-    # Create a mock that returns different values based on structured output type
-    def mock_with_structured_output(output_type):
-        mock_chain = MagicMock()
-        if output_type == SearchPlan:
-            mock_chain.invoke.return_value = sample_search_plan
-        elif output_type == Evaluation:
-            mock_chain.invoke.return_value = sample_evaluation_sufficient
-        elif output_type == NewsDigest:
-            mock_chain.invoke.return_value = sample_digest
-        return mock_chain
+    monkeypatch.setattr("nodes.planner.model", mocks["planner"])
+    monkeypatch.setattr("nodes.evaluator.model", mocks["evaluator"])
+    monkeypatch.setattr("nodes.analyst.model", mocks["analyst"])
+    monkeypatch.setattr("nodes.enricher.pioneer_extract", mocks["pioneer_enricher"])
 
-    mock_model.with_structured_output = mock_with_structured_output
-
-    # Patch in all node modules that use OpenAI
-    monkeypatch.setattr("nodes.planner.model", mock_model)
-    monkeypatch.setattr("nodes.evaluator.model", mock_model)
-    monkeypatch.setattr("nodes.analyst.model", mock_model)
-
-    return mock_model
+    return mocks["planner"]
 
 
 @pytest.fixture
-def mock_openai_insufficient(monkeypatch, sample_search_plan, sample_evaluation_insufficient, sample_digest):
+def mock_openai_insufficient(
+    monkeypatch,
+    sample_search_plan,
+    sample_evaluation_insufficient,
+    sample_digest,
+    sample_pioneer_enricher_entities,
+):
     """
-    Mock ChatOpenAI that returns insufficient evaluation (triggers re-search).
+    Mock that returns insufficient evaluation (triggers re-search loop).
     """
-    mock_model = MagicMock()
+    mocks = _make_openai_mock(
+        sample_search_plan,
+        sample_evaluation_insufficient,
+        sample_digest,
+        sample_pioneer_enricher_entities,
+    )
 
-    def mock_with_structured_output(output_type):
-        mock_chain = MagicMock()
-        if output_type == SearchPlan:
-            mock_chain.invoke.return_value = sample_search_plan
-        elif output_type == Evaluation:
-            mock_chain.invoke.return_value = sample_evaluation_insufficient
-        elif output_type == NewsDigest:
-            mock_chain.invoke.return_value = sample_digest
-        return mock_chain
+    monkeypatch.setattr("nodes.planner.model", mocks["planner"])
+    monkeypatch.setattr("nodes.evaluator.model", mocks["evaluator"])
+    monkeypatch.setattr("nodes.analyst.model", mocks["analyst"])
+    monkeypatch.setattr("nodes.enricher.pioneer_extract", mocks["pioneer_enricher"])
 
-    mock_model.with_structured_output = mock_with_structured_output
-
-    monkeypatch.setattr("nodes.planner.model", mock_model)
-    monkeypatch.setattr("nodes.evaluator.model", mock_model)
-    monkeypatch.setattr("nodes.analyst.model", mock_model)
-
-    return mock_model
+    return mocks["planner"]

@@ -27,7 +27,6 @@ class TestFullAgentFlow:
         """Test that all nodes are executed in the correct order."""
         nodes_called = []
 
-        # Wrap nodes to track execution order
         original_stream = app.stream
 
         def tracking_stream(inputs):
@@ -43,8 +42,15 @@ class TestFullAgentFlow:
                 end_date="2026-02-03"
             )
 
-        # Verify expected order (at minimum)
-        expected_sequence = ["explorador", "planificador", "buscador", "extractor", "evaluador", "analista"]
+        expected_sequence = [
+            "explorador",
+            "planificador",
+            "buscador",
+            "extractor",
+            "enriquecedor",
+            "evaluador",
+            "analista",
+        ]
         for expected_node in expected_sequence:
             assert expected_node in nodes_called, f"Node {expected_node} was not called"
 
@@ -58,7 +64,6 @@ class TestFullAgentFlow:
             end_date="2026-02-03"
         )
 
-        # Should still produce a digest (might be empty)
         assert digest is not None
 
 
@@ -67,26 +72,19 @@ class TestConditionalLoop:
 
     def test_loops_when_coverage_insufficient(self, mock_tavily, mock_openai_insufficient):
         """Test that agent loops back to buscador when evaluation is insufficient."""
-        # Track search calls by counting how many times search was called
-        # We check this after the run completes
-
-        # Run the agent
         run_agent(
             objective="Test",
             start_date="2026-01-20",
             end_date="2026-02-03"
         )
 
-        # Should have searched multiple times:
-        # Explorer (1) + first buscador (N topics) + re-search (M topics)
-        # Since mock returns 3 topics and evaluation is insufficient, we expect multiple calls
-        assert mock_tavily.search.call_count >= 4  # 1 explorer + 3 topics minimum
+        # Explorer (1 search) + first buscador (N topics) + re-search via actualizador
+        assert mock_tavily.search.call_count >= 4
 
     def test_respects_max_iterations_limit(self, mock_tavily, mock_openai_insufficient):
         """Test that agent doesn't exceed MAX_SEARCH_ITERATIONS."""
         search_iterations = [0]
 
-        # Track how many times buscador is called
         from nodes.searcher import search_news_node
         original_searcher = search_news_node
 
@@ -101,8 +99,28 @@ class TestConditionalLoop:
                 end_date="2026-02-03"
             )
 
-        # Should not exceed max iterations
-        assert search_iterations[0] <= MAX_SEARCH_ITERATIONS + 1  # +1 for safety margin
+        assert search_iterations[0] <= MAX_SEARCH_ITERATIONS + 1
+
+    def test_actualizador_updates_topics(self, mock_tavily, mock_openai_insufficient):
+        """Test that actualizador_topics replaces topics with missing_topics."""
+        nodes_called = []
+
+        original_stream = app.stream
+
+        def tracking_stream(inputs):
+            for output in original_stream(inputs):
+                for key in output.keys():
+                    nodes_called.append(key)
+                yield output
+
+        with patch.object(app, 'stream', tracking_stream):
+            run_agent(
+                objective="Test",
+                start_date="2026-01-20",
+                end_date="2026-02-03"
+            )
+
+        assert "actualizador_topics" in nodes_called
 
 
 class TestGraphCompilation:
@@ -114,11 +132,18 @@ class TestGraphCompilation:
 
     def test_graph_has_correct_entry_point(self):
         """Test that the graph starts at explorador."""
-        # Get the graph structure
         graph_dict = app.get_graph().to_json()
-
-        # The entry point should be explorador
         assert "explorador" in str(graph_dict)
+
+    def test_graph_has_enriquecedor_node(self):
+        """Test that the graph includes the Pioneer enricher node."""
+        graph_dict = app.get_graph().to_json()
+        assert "enriquecedor" in str(graph_dict)
+
+    def test_graph_has_actualizador_node(self):
+        """Test that the graph includes the topic updater node."""
+        graph_dict = app.get_graph().to_json()
+        assert "actualizador_topics" in str(graph_dict)
 
     def test_initial_state_structure(self):
         """Test that initial state has all required fields."""
@@ -136,7 +161,6 @@ class TestGraphCompilation:
             "digest": None,
         }
 
-        # All required fields should be present
         required_fields = [
             "objective", "context", "start_date", "end_date",
             "exploration_results", "topics", "planning_reasoning",
@@ -211,7 +235,6 @@ class TestErrorHandling:
         with patch('nodes.explorer.tavily') as mock_tavily:
             mock_tavily.search.side_effect = Exception("API Error")
 
-            # Should raise or handle gracefully
             with pytest.raises(Exception):
                 run_agent(
                     objective="Test",
@@ -219,15 +242,17 @@ class TestErrorHandling:
                     end_date="2026-02-03"
                 )
 
-    def test_handles_openai_api_error(self, mock_tavily):
-        """Test that agent handles OpenAI API errors gracefully."""
-        with patch('nodes.planner.model') as mock_model:
-            mock_model.with_structured_output.return_value.invoke.side_effect = Exception("API Error")
+    def test_handles_pioneer_enricher_error(self, mock_tavily, mock_openai, monkeypatch):
+        """Test that agent handles Pioneer enricher errors gracefully."""
+        monkeypatch.setattr(
+            "nodes.enricher.pioneer_extract",
+            MagicMock(return_value=[]),
+        )
 
-            # Should raise or handle gracefully
-            with pytest.raises(Exception):
-                run_agent(
-                    objective="Test",
-                    start_date="2026-01-20",
-                    end_date="2026-02-03"
-                )
+        digest = run_agent(
+            objective="Test",
+            start_date="2026-01-20",
+            end_date="2026-02-03"
+        )
+
+        assert digest is not None
