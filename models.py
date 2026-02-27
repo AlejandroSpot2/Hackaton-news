@@ -23,8 +23,8 @@ class TopicSection(BaseModel):
     """A section of the news digest for a single topic."""
     title: str
     article: str
-    sources: list[str] = Field(description="URLs de fuentes externas (noticias y videos)")
-    visual_insights: list[VisualInsight] = Field(default_factory=list, description="Análisis de contenido de video relacionado")
+    sources: list[str] = Field(description="URLs of external sources (news articles and videos)")
+    visual_insights: list[VisualInsight] = Field(default_factory=list, description="Analysis of related video content")
 
 
 class NewsDigest(BaseModel):
@@ -35,7 +35,7 @@ class NewsDigest(BaseModel):
 class ReportOutput(BaseModel):
     """
     Full report output with metadata and the news digest.
-    
+
     This is the primary JSON output of the agent. It wraps the
     NewsDigest with contextual metadata so the file is self-describing.
     """
@@ -67,25 +67,28 @@ class GraphState(TypedDict):
     """State that flows through the LangGraph agent."""
     # High-level objective (input)
     objective: str
-    
+
+    # Optional research context (sector, region, focus)
+    context: str
+
     # Date range for searches (controlled externally, not by AI)
     start_date: str
     end_date: str
-    
+
     # Results from broad exploration (explorer node output)
     exploration_results: list[dict]
-    
+
     # Planning output
     topics: list[str]
     planning_reasoning: str
-    
+
     # Search and extraction results
     raw_content: list[dict]
-    
+
     # Evaluation output
     evaluation: Evaluation | None
     search_iterations: int
-    
+
     # Final output
     digest: NewsDigest | None
 
@@ -99,17 +102,3 @@ class GraphState(TypedDict):
 # =============================================================================
 
 MAX_SEARCH_ITERATIONS = 2  # Safety limit for search loops
-
-MEXICO_DOMAINS = [
-    "eleconomista.com.mx",
-    "elfinanciero.com.mx",
-    "expansion.mx",
-    "forbes.com.mx",
-    "inmobiliare.com",
-    "realestatemarket.com.mx",
-    "obrasweb.mx",
-    "centrourbano.com",
-    "mexicoindustry.com",
-    "solili.mx",
-    "oem.com.mx/elsoldemexico"
-]

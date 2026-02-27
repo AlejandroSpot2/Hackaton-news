@@ -1,5 +1,5 @@
 """
-News Bot - LangGraph Agent for Mexico CRE Sector News
+News Research Agent - LangGraph-powered autonomous news research
 
 An autonomous agent that:
 1. Explores current news to understand what's happening
@@ -98,28 +98,30 @@ def run_agent(
     objective: str,
     start_date: str,
     end_date: str,
+    context: str = "",
 ) -> NewsDigest | None:
     """
     Run the news agent with a high-level objective.
-    
+
     The agent will autonomously:
     1. Explore current news
     2. Plan what to search
     3. Search and extract content
     4. Evaluate and possibly iterate
     5. Generate the final digest
-    
+
     Args:
         objective: High-level description of what news to find
-                   e.g., "Noticias del sector inmobiliario comercial en México"
         start_date: Start date for news search (YYYY-MM-DD)
         end_date: End date for news search (YYYY-MM-DD)
-        
+        context: Optional research context (sector, region, focus)
+
     Returns:
         NewsDigest with the structured report, or None if failed
     """
     inputs: GraphState = {
         "objective": objective,
+        "context": context,
         "start_date": start_date,
         "end_date": end_date,
         "exploration_results": [],
@@ -132,21 +134,23 @@ def run_agent(
         "video_sources": [],
         "visual_analysis": [],
     }
-    
+
     print(f"\n{'='*60}")
-    print(f"AGENTE DE NOTICIAS - SECTOR CRE MEXICO")
+    print(f"NEWS RESEARCH AGENT")
     print(f"{'='*60}")
-    print(f"Objetivo: {objective}")
-    print(f"Periodo: {start_date} a {end_date}")
+    print(f"Objective: {objective}")
+    if context:
+        print(f"Context: {context}")
+    print(f"Period: {start_date} to {end_date}")
     print(f"{'='*60}\n")
-    
+
     final_state = None
     for output in app.stream(inputs):
         for key, value in output.items():
-            print(f"[OK] Nodo completado: {key}")
+            print(f"[OK] Node completed: {key}")
             if key == "analista":
                 final_state = value
-    
+
     return final_state.get("digest") if final_state else None
 
 
@@ -159,14 +163,14 @@ def save_report(
 ) -> ReportOutput:
     """
     Save the digest as a JSON report using Pydantic serialization.
-    
+
     Args:
         digest: The NewsDigest to save
         objective: The search objective used for this run
         start_date: Start of the news search window
         end_date: End of the news search window
         filename: Output filename (default: reporte.json)
-        
+
     Returns:
         The ReportOutput model that was saved
     """
@@ -177,11 +181,11 @@ def save_report(
         period_end=end_date,
         digest=digest,
     )
-    
+
     with open(filename, "w", encoding="utf-8") as f:
         f.write(report.model_dump_json(indent=2))
-    
-    print(f"[SAVE] Guardado en: {filename}")
+
+    print(f"[SAVE] Saved to: {filename}")
     return report
 
 
@@ -190,26 +194,40 @@ def save_report(
 # =============================================================================
 
 if __name__ == "__main__":
-    # Example usage with autonomous objective
-    objective = "Noticias del sector inmobiliario comercial en México: parques industriales, oficinas corporativas, y desarrollos logísticos"
-    start_date = "2026-02-07"
-    end_date = "2026-02-16"
-    
+    print("=" * 60)
+    print("  NEWS RESEARCH AGENT")
+    print("=" * 60)
+
+    objective = input("\nWhat are we researching today? > ").strip()
+    if not objective:
+        print("No objective provided. Exiting.")
+        raise SystemExit(1)
+
+    period = input("What time period? (e.g. 2026-02-01 to 2026-02-27) > ").strip()
+    parts = period.replace(" to ", " ").replace(" - ", " ").split()
+    if len(parts) < 2:
+        print("Invalid period. Please provide start and end dates.")
+        raise SystemExit(1)
+    start_date, end_date = parts[0], parts[1]
+
+    context = input("(Optional) Any specific context? (e.g. sector, region, focus) > ").strip()
+
     digest = run_agent(
         objective=objective,
         start_date=start_date,
         end_date=end_date,
+        context=context,
     )
-    
+
     if digest:
         print(f"\n{'='*60}")
-        print("REPORTE GENERADO")
+        print("REPORT GENERATED")
         print(f"{'='*60}\n")
-        
+
         for section in digest.sections:
             print(f">> {section.title}")
             print(f"   {section.article[:150]}...")
-            print(f"   Fuentes externas: {len(section.sources)}")
+            print(f"   External sources: {len(section.sources)}")
             print()
-        
+
         save_report(digest, objective, start_date, end_date)

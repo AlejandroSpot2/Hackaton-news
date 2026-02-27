@@ -28,10 +28,10 @@ def _upload_video(url: str, name: str) -> str | None:
         )
         response.raise_for_status()
         video_id = response.json().get("video_id")
-        print(f"    Subido: {video_id}")
+        print(f"    Uploaded: {video_id}")
         return video_id
     except Exception as e:
-        print(f"    ! Error subiendo video: {e}")
+        print(f"    ! Error uploading video: {e}")
         return None
 
 
@@ -41,20 +41,21 @@ def _wait_for_indexing(video_id: str) -> bool:
     while elapsed < INDEX_TIMEOUT_SECONDS:
         try:
             resp = requests.get(f"{VISION_BASE_URL}/v1/videos/{video_id}", headers=headers, timeout=15)
-            status = resp.json().get("indexing_status", "pending")
+            data = resp.json()
+            status = data.get("indexing_status", "pending")
             if status == "indexed":
-                print(f"    Indexado ✓")
+                print(f"    Indexed ✓")
                 return True
             elif status == "failed":
-                print(f"    ! Indexación falló")
+                print(f"    ! Indexing failed. Full API response: {data}")
                 return False
             elapsed += INDEX_POLL_INTERVAL
-            print(f"    Indexando... ({status}, {elapsed}s/{INDEX_TIMEOUT_SECONDS}s)", end="\r")
+            print(f"    Indexing... ({status}, {elapsed}s/{INDEX_TIMEOUT_SECONDS}s)", end="\r")
             time.sleep(INDEX_POLL_INTERVAL)
         except Exception as e:
-            print(f"    ! Error verificando estado: {e}")
+            print(f"    ! Error checking indexing status: {e}")
             return False
-    print(f"    ! Timeout después de {INDEX_TIMEOUT_SECONDS}s")
+    print(f"    ! Timeout after {INDEX_TIMEOUT_SECONDS}s")
     return False
 
 
@@ -69,14 +70,14 @@ def _qa_video(video_id: str, objective: str, topic: str) -> str:
                 "messages": [{
                     "role": "user",
                     "content": (
-                        f"Contexto: Este video es sobre noticias relacionadas con: {topic}.\n"
-                        f"Objetivo de la investigación: {objective}.\n\n"
-                        "Analiza el video y proporciona:\n"
-                        "1. Resumen del contenido principal\n"
-                        "2. Datos clave: cifras, empresas, ubicaciones, fechas\n"
-                        "3. Personas que aparecen y qué dicen\n"
-                        "4. Conclusiones o tendencias relevantes\n\n"
-                        "Responde en español, de forma concisa y estructurada."
+                        f"Context: This video is about news related to: {topic}.\n"
+                        f"Research objective: {objective}.\n\n"
+                        "Analyze the video and provide:\n"
+                        "1. Summary of the main content\n"
+                        "2. Key data: figures, companies, locations, dates\n"
+                        "3. People appearing and what they say\n"
+                        "4. Conclusions or relevant trends\n\n"
+                        "Respond concisely and in structured form."
                     ),
                 }],
             },
@@ -85,7 +86,7 @@ def _qa_video(video_id: str, objective: str, topic: str) -> str:
         resp.raise_for_status()
         return resp.json().get("chat_response", "")
     except Exception as e:
-        print(f"    ! Error en Q&A: {e}")
+        print(f"    ! Error in Q&A: {e}")
         return ""
 
 
@@ -97,12 +98,12 @@ def _delete_video(video_id: str) -> None:
 
 
 def visual_analyzer_node(state: GraphState) -> dict:
-    print("--- ANALIZANDO VIDEOS (REKA VISION) ---")
+    print("--- ANALYZING VIDEOS (REKA VISION) ---")
     video_sources = state.get("video_sources", [])
-    objective = state.get("objective", "noticias México")
+    objective = state.get("objective", "general news")
 
     if not video_sources:
-        print("  -> No hay videos para analizar")
+        print("  -> No videos to analyze")
         return {"visual_analysis": []}
 
     total = len(video_sources)
@@ -124,7 +125,7 @@ def visual_analyzer_node(state: GraphState) -> dict:
             _delete_video(video_id)
             continue
 
-        print(f"    Analizando contenido...")
+        print(f"    Analyzing content...")
         analysis = _qa_video(video_id, objective, topic)
 
         if analysis:
@@ -134,11 +135,11 @@ def visual_analyzer_node(state: GraphState) -> dict:
                 "analysis": analysis,
                 "source_topic": topic[:100],
             })
-            print(f"    ✓ Análisis listo ({len(analysis)} chars)")
+            print(f"    ✓ Analysis ready ({len(analysis)} chars)")
         else:
-            print(f"    ! Análisis vacío")
+            print(f"    ! Empty analysis")
 
         _delete_video(video_id)
 
-    print(f"\n  => Videos analizados: {len(visual_analysis)}/{total}")
+    print(f"\n  => Videos analyzed: {len(visual_analysis)}/{total}")
     return {"visual_analysis": visual_analysis}

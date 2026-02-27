@@ -1,6 +1,9 @@
 """
-Video Searcher node — finds video URLs related to research topics using Tavily.
+Video Searcher node — finds YouTube video URLs related to research topics using Tavily.
 Limits: MAX_VIDEOS=5, MAX_VIDEOS_PER_TOPIC=2. Configurable via env vars.
+
+No domain filtering is applied (matches the generic text searcher pattern).
+YouTube URLs are extracted from any result via regex.
 """
 import os
 import re
@@ -16,15 +19,6 @@ tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
 MAX_VIDEOS = int(os.getenv("MAX_VIDEOS", "5"))
 MAX_VIDEOS_PER_TOPIC = int(os.getenv("MAX_VIDEOS_PER_TOPIC", "2"))
-
-VIDEO_DOMAINS = [
-    "youtube.com",
-    "youtu.be",
-    "expansion.mx",
-    "elfinanciero.com.mx",
-    "eleconomista.com.mx",
-    "forbes.com.mx",
-]
 
 YOUTUBE_PATTERN = re.compile(
     r'(?:https?://)?(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)([\w-]+)'
@@ -51,27 +45,27 @@ def _extract_youtube_urls(results: list[dict]) -> list[dict]:
             clean_url = f"https://www.youtube.com/watch?v={match.group(1)}"
             if clean_url not in seen:
                 seen.add(clean_url)
-                videos.append({"url": clean_url, "title": f"(embebido) {title}", "snippet": content[:300], "source": "embedded"})
+                videos.append({"url": clean_url, "title": f"(embedded) {title}", "snippet": content[:300], "source": "embedded"})
     return videos
 
 
 def video_searcher_node(state: GraphState) -> dict:
-    print(f"--- BUSCANDO VIDEOS (máx {MAX_VIDEOS}) ---")
+    print(f"--- SEARCHING VIDEOS (max {MAX_VIDEOS}) ---")
     topics = state.get("topics", [])
     candidate_videos = []
 
     for topic in topics:
         if len(candidate_videos) >= MAX_VIDEOS:
             break
-        query = f"{topic} video YouTube México"
-        print(f"  -> Buscando: {query}")
+        query = f"{topic} video YouTube"
+        print(f"  -> Searching: {query}")
         try:
-            response = tavily.search(query=query, search_depth="basic", max_results=5, topic="news", include_domains=VIDEO_DOMAINS)
+            response = tavily.search(query=query, search_depth="basic", max_results=5, topic="news")
             found = _extract_youtube_urls(response.get("results", []))
             candidate_videos.extend(found[:MAX_VIDEOS_PER_TOPIC])
-            print(f"     Encontrados: {len(found)} videos")
+            print(f"     Found: {len(found)} videos")
         except Exception as e:
-            print(f"  ! Error buscando videos para '{topic}': {e}")
+            print(f"  ! Error searching videos for '{topic}': {e}")
 
     seen = set()
     unique_videos = []
@@ -81,7 +75,7 @@ def video_searcher_node(state: GraphState) -> dict:
             unique_videos.append(v)
 
     final_videos = unique_videos[:MAX_VIDEOS]
-    print(f"  -> Videos seleccionados: {len(final_videos)}")
+    print(f"  -> Videos selected: {len(final_videos)}")
     for i, v in enumerate(final_videos, 1):
         print(f"     {i}. {v['title'][:60]}")
 

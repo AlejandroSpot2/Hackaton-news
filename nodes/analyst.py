@@ -18,38 +18,43 @@ model = ChatOpenAI(model="gpt-5-2025-08-07", temperature=0.0)
 def analyze_news_node(state: GraphState) -> dict:
     """
     Generate a structured news digest from the collected content.
-    
+
     Args:
         state: Current graph state containing raw_content and objective
-        
+
     Returns:
         Dictionary with the final NewsDigest
     """
-    print("--- GENERANDO REPORTE ---")
+    print("--- GENERATING REPORT ---")
 
     date = datetime.now().strftime("%Y-%m-%d")
+    objective = state.get("objective", "News summary")
+    context = state.get("context", "")
 
+    # Video branch: build video analysis context block
     visual_analysis = state.get("visual_analysis", [])
     video_context = ""
     if visual_analysis:
-        video_context = "\n\nANÁLISIS DE CONTENIDO EN VIDEO:\n"
+        video_context = "\n\nANALYZED VIDEO CONTENT:\n"
         for va in visual_analysis:
-            video_context += f"\nVideo: {va['video_title']}\nURL: {va['video_url']}\nAnálisis: {va['analysis']}\n"
+            video_context += f"\nVideo: {va['video_title']}\nURL: {va['video_url']}\nAnalysis: {va['analysis']}\n"
 
-    prompt = f"""Eres un analista de noticias profesional especializado en el sector inmobiliario comercial de México.
-La fecha de hoy es {date}.
+    context_block = f"\nResearch context: {context}\n" if context else ""
 
-Objetivo del reporte: {state.get("objective", "Resumen de noticias del sector CRE México")}
+    prompt = f"""You are a professional news analyst.
+Today's date is {date}.
 
-Tu tarea es generar un resumen estructurado de noticias.
-Por cada tema relevante, escribe:
-1. Un título descriptivo
-2. Un artículo de 100 a 150 palabras resumiendo los puntos clave con datos concretos (cifras, empresas, ubicaciones)
-3. Lista las URLs de las fuentes externas utilizadas (campo "sources"); incluye URLs de videos relevantes cuando aplique
+Report objective: {objective}
+{context_block}
+Your task is to generate a structured news summary.
+For each relevant topic, write:
+1. A descriptive title
+2. An article of 100 to 150 words summarizing the key points with concrete data (figures, companies, locations)
+3. List the URLs of the external sources used (field "sources"); include video URLs where relevant
 
-Si existe análisis de video, intégralo en las secciones pertinentes e incluye las URLs de los videos en el campo "sources".
+If video analysis is provided below, integrate its insights into the relevant sections and include the video URLs in the "sources" field.
 
-Datos de noticias recopilados:
+Collected news data:
 {state["raw_content"]}{video_context}
 """
 
