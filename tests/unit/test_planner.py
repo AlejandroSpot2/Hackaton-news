@@ -44,7 +44,6 @@ class TestPlannerNode:
 
         result = planner_node(state)
 
-        # Should still return topics (from model)
         assert "topics" in result
 
     def test_uses_structured_output(self, mock_openai, sample_exploration_results):
@@ -56,6 +55,5 @@ class TestPlannerNode:
 
         result = planner_node(state)
 
-        # Verify it returns topics (which means structured output worked)
         assert isinstance(result["topics"], list)
         assert len(result["topics"]) > 0
