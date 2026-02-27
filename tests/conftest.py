@@ -87,6 +87,8 @@ def sample_state(sample_exploration_results, sample_raw_content):
         evaluation=None,
         search_iterations=0,
         digest=None,
+        video_sources=[],
+        visual_analysis=[],
     )
 
 
@@ -209,6 +211,7 @@ def mock_tavily(monkeypatch, mock_tavily_search_response, mock_tavily_extract_re
     monkeypatch.setattr("nodes.explorer.tavily", mock_client)
     monkeypatch.setattr("nodes.searcher.tavily", mock_client)
     monkeypatch.setattr("nodes.extractor.tavily", mock_client)
+    monkeypatch.setattr("nodes.video_searcher.tavily", mock_client)
 
     return mock_client
 
