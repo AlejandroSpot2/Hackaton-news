@@ -328,6 +328,4 @@ pytest --cov=nodes --cov=agent
 ---
 
 ## Team
-
 Built by the Hackaton-news team at the Autonomous Agents Hackathon. Argentina, Peru, Mexico is KEY.
-MIT
