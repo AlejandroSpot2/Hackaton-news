@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newsloop — AI Research Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ===== TOKENS ===== */
+    :root {
+      --black:      #000000;
+      --white:      #FFFFFF;
+      --cream:      #FFFEF2;
+      --violet:     #6C3CE1;
+      --yellow:     #FFD700;
+      --green:      #22C55E;
+      --blue:       #3B82F6;
+      --red:        #EF4444;
+      --text:       #000000;
+      --text-2:     #374151;
+      --text-3:     #6B7280;
+      --border:     3px solid #000;
+      --border-2:   2px solid #000;
+      --shadow:     5px 5px 0px #000;
+      --shadow-sm:  3px 3px 0px #000;
+      --radius:     4px;
+    }
+
+    /* ===== RESET ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ===== LAYOUT ===== */
+    .container {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 0 28px;
+    }
+
+    section { padding: 64px 0; }
+
+    .hidden { display: none !important; }
+
+    /* ===== LOGO ===== */
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .logo-mark {
+      width: 46px;
+      height: 46px;
+      background: var(--yellow);
+      border: var(--border);
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* Override the old circle pseudo-element */
+    .logo-mark::after {
+      content: 'N';
+      font-family: 'Inter', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--black);
+      width: auto;
+      height: auto;
+      border: none;
+      border-radius: 0;
+      transform: none;
+    }
+
+    .logo-text {
+      font-size: 36px;
+      font-weight: 900;
+      letter-spacing: -1.5px;
+      color: var(--black);
+      background: var(--yellow);
+      padding: 2px 10px 0;
+      line-height: 1.15;
+      display: inline-block;
+      border: var(--border);
+      /* clear gradient from original */
+      -webkit-text-fill-color: var(--black);
+      background-clip: unset;
+      -webkit-background-clip: unset;
+    }
+
+    .tagline {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-2);
+      margin-bottom: 48px;
+      letter-spacing: 0.1px;
+    }
+
+    /* ===== FORM ===== */
+    .research-form {
+      background: var(--white);
+      border: var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 36px;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 22px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    label .label-hint {
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--text-3);
+    }
+
+    input[type="text"],
+    input[type="date"] {
+      background: var(--white);
+      border: var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      width: 100%;
+      outline: none;
+      transition: box-shadow 0.1s;
+    }
+
+    input[type="text"]::placeholder { color: var(--text-3); }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      cursor: pointer;
+    }
+
+    input:focus {
+      box-shadow: 4px 4px 0px var(--yellow);
+    }
+
+    /* ===== LAUNCH BUTTON ===== */
+    .btn-launch {
+      width: 100%;
+      padding: 15px 24px;
+      background: var(--violet);
+      border: var(--border);
+      border-radius: var(--radius);
+      color: var(--white);
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      box-shadow: 5px 5px 0px var(--yellow);
+      transition: box-shadow 0.1s, transform 0.1s;
+      margin-top: 6px;
+    }
+
+    .btn-launch:hover:not(:disabled) {
+      box-shadow: 2px 2px 0px var(--yellow);
+      transform: translate(3px, 3px);
+    }
+
+    .btn-launch:active:not(:disabled) {
+      box-shadow: 0px 0px 0px var(--yellow);
+      transform: translate(5px, 5px);
+    }
+
+    .btn-launch:disabled {
+      background: var(--text-3);
+      color: var(--white);
+      cursor: not-allowed;
+      box-shadow: 2px 2px 0px #9CA3AF;
+      transform: translate(3px, 3px);
+    }
+
+    /* ===== SECTION HEADERS ===== */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--black);
+      background: var(--yellow);
+      border: var(--border-2);
+      padding: 4px 12px;
+      white-space: nowrap;
+    }
+
+    .section-divider {
+      flex: 1;
+      height: 3px;
+      background: var(--black);
+    }
+
+    /* ===== PIPELINE ===== */
+    .pipeline-wrap {
+      background: var(--white);
+      border: var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 18px 22px;
+      margin-bottom: 18px;
+      overflow-x: auto;
+    }
+
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: max-content;
+    }
+
+    .pipeline-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .pipeline-arrow {
+      color: var(--black);
+      font-size: 18px;
+      font-weight: 900;
+      flex-shrink: 0;
+      padding: 0 3px;
+    }
+
+    /* pending = dashed black border, white fill */
+    .node-pill {
+      font-size: 10.5px;
+      font-family: 'Menlo', 'Consolas', monospace;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: var(--radius);
+      border: 2px dashed var(--black);
+      color: var(--text-2);
+      background: var(--white);
+      white-space: nowrap;
+      transition: all 0.1s;
+    }
+
+    /* active = yellow fill, solid border, small shadow */
+    .node-pill.active {
+      background: var(--yellow);
+      border: 2px solid var(--black);
+      color: var(--black);
+      box-shadow: 2px 2px 0px var(--black);
+    }
+
+    /* done = green fill, solid border, small shadow */
+    .node-pill.done {
+      background: var(--green);
+      border: 2px solid var(--black);
+      color: var(--black);
+      box-shadow: 2px 2px 0px var(--black);
+    }
+
+    /* ===== STATUS BAR ===== */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid var(--black);
+      background: #D1D5DB;
+      flex-shrink: 0;
+    }
+
+    .status-dot.running { background: var(--blue);   animation: blink 1s ease-in-out infinite; }
+    .status-dot.done    { background: var(--green);  animation: none; }
+    .status-dot.error   { background: var(--red);    animation: none; }
+
+    /* ===== TERMINAL ===== */
+    .terminal {
+      background: #1A1A2E;
+      border: 4px solid var(--black);
+      border-radius: var(--radius);
+      box-shadow: 6px 6px 0px var(--blue);
+      padding: 22px;
+      height: 380px;
+      overflow-y: auto;
+      font-family: 'Menlo', 'Consolas', 'Courier New', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      scroll-behavior: smooth;
+    }
+
+    .terminal::-webkit-scrollbar { width: 5px; }
+    .terminal::-webkit-scrollbar-track { background: transparent; }
+    .terminal::-webkit-scrollbar-thumb { background: #374151; border-radius: 2px; }
+
+    /* Log line colors — these class names are set by JS, do not rename */
+    .log-line    { display: block; word-break: break-word; }
+    .log-ok      { color: #34d399; }
+    .log-error   { color: #f87171; }
+    .log-info    { color: #60a5fa; }
+    .log-section { color: #c084fc; font-weight: 700; }
+    .log-default { color: #6B7280; }
+    .log-dim     { color: #374151; }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 14px;
+      background: var(--yellow);
+      vertical-align: text-bottom;
+      margin-left: 2px;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    /* ===== ERROR BANNER ===== */
+    .error-banner {
+      background: #FEF2F2;
+      border: var(--border);
+      border-radius: var(--radius);
+      box-shadow: 3px 3px 0px var(--red);
+      padding: 12px 18px;
+      color: #991B1B;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 14px;
+    }
+
+    /* ===== REPORT META ===== */
+    .report-meta {
+      background: var(--white);
+      border: var(--border);
+      border-radius: var(--radius);
+      box-shadow: 5px 5px 0px var(--yellow);
+      padding: 22px 28px;
+      margin-bottom: 28px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .report-meta-objective {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+
+    .report-meta-detail {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+    }
+
+    /* JS sets innerHTML with <span> tags for dates */
+    .report-meta-detail span {
+      color: var(--violet);
+      font-weight: 700;
+    }
+
+    /* ===== DOWNLOAD BUTTONS ===== */
+    .download-group {
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .btn-download {
+      padding: 9px 18px;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border: var(--border-2);
+      transition: box-shadow 0.1s, transform 0.1s;
+      text-transform: uppercase;
+    }
+
+    .btn-json {
+      background: var(--white);
+      color: var(--black);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-json:hover {
+      box-shadow: 1px 1px 0px var(--black);
+      transform: translate(2px, 2px);
+    }
+
+    .btn-md {
+      background: var(--violet);
+      color: var(--white);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-md:hover {
+      box-shadow: 1px 1px 0px var(--black);
+      transform: translate(2px, 2px);
+    }
+
+    /* ===== SECTION CARDS ===== */
+    /* JS creates these dynamically in renderReport() — class names must match */
+    .section-cards { display: flex; flex-direction: column; gap: 24px; }
+
+    .section-card {
+      background: var(--white);
+      border: var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transition: box-shadow 0.1s, transform 0.1s;
+    }
+
+    .section-card:hover {
+      box-shadow: 2px 2px 0px var(--black);
+      transform: translate(3px, 3px);
+    }
+
+    /* Yellow header strip — JS creates .card-number as the first child */
+    .card-number {
+      display: block;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--black);
+      background: var(--yellow);
+      border-bottom: var(--border);
+      padding: 7px 28px;
+      margin: 0;
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.25;
+      padding: 22px 28px 4px;
+      margin: 0;
+    }
+
+    .card-article {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-2);
+      line-height: 1.75;
+      padding: 12px 28px 22px;
+      margin: 0;
+    }
+
+    .card-section-label {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--black);
+      background: #F3F4F6;
+      border: var(--border-2);
+      padding: 3px 9px;
+      display: inline-block;
+      margin: 0 28px 12px;
+    }
+
+    .sources-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      padding: 0 28px 24px;
+    }
+
+    .sources-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .sources-list li::before {
+      content: '↗';
+      color: var(--black);
+      font-weight: 900;
+      font-size: 12px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .sources-list a {
+      color: var(--violet);
+      font-size: 12.5px;
+      font-weight: 600;
+      text-decoration: none;
+      word-break: break-all;
+    }
+
+    .sources-list a:hover { text-decoration: underline; }
+
+    /* ===== VISUAL INSIGHTS ===== */
+    /* JS creates .insights-section → .insight-card → .insight-header + .insight-analysis */
+    .insights-section {
+      padding: 0 28px 26px;
+    }
+
+    .insight-card {
+      background: #F5F3FF;
+      border: var(--border-2);
+      border-left: 5px solid var(--violet);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 16px;
+      margin-top: 10px;
+    }
+
+    .insight-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .insight-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius);
+      background: var(--violet);
+      border: var(--border-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 9px;
+      color: var(--white);
+    }
+
+    .insight-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--violet);
+      text-decoration: none;
+    }
+
+    .insight-title:hover { text-decoration: underline; }
+
+    .insight-analysis {
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-2);
+      line-height: 1.65;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 600px) {
+      section                      { padding: 44px 0; }
+      .research-form               { padding: 22px; }
+      .form-row                    { grid-template-columns: 1fr; }
+      .report-meta                 { grid-template-columns: 1fr; }
+      .download-group              { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ======================================================= -->
+<!-- HERO / INPUT                                            -->
+<!-- ======================================================= -->
+<section id="section-input">
+  <div class="container">
+
+    <div class="logo">
+      <div class="logo-mark"></div>
+      <span class="logo-text">Newsloop</span>
+    </div>
+    <p class="tagline">Research smarter. Publish faster.</p>
+
+    <div class="research-form">
+      <div class="form-grid">
+
+        <div class="field">
+          <label for="objective">What are we researching?</label>
+          <input
+            id="objective"
+            type="text"
+            placeholder="e.g. AI regulation in the European Union"
+            autocomplete="off"
+          >
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label for="start-date">Start date</label>
+            <input id="start-date" type="date">
+          </div>
+          <div class="field">
+            <label for="end-date">End date</label>
+            <input id="end-date" type="date">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="context">Context <span class="label-hint">(optional — sector, region, focus)</span></label>
+          <input
+            id="context"
+            type="text"
+            placeholder="e.g. Technology policy, Europe, enterprise impact"
+            autocomplete="off"
+          >
+        </div>
+
+        <button class="btn-launch" id="btn-launch" onclick="launchResearch()">
+          Launch Research &nbsp;→
+        </button>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ======================================================= -->
+<!-- LIVE LOGS                                               -->
+<!-- ======================================================= -->
+<section id="section-logs" class="hidden">
+  <div class="container">
+
+    <div class="section-header">
+      <span class="section-label">Live Logs</span>
+      <div class="section-divider"></div>
+    </div>
+
+    <!-- Pipeline progress -->
+    <div class="pipeline-wrap">
+      <div class="pipeline">
+        <div class="node-pill" data-node="explorador">explorador</div>
+        <div class="pipeline-arrow">→</div>
+        <div class="node-pill" data-node="planificador">planificador</div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-group">
+          <div class="node-pill" data-node="buscador">buscador</div>
+          <div class="node-pill" data-node="buscador_video">buscador_video</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-group">
+          <div class="node-pill" data-node="extractor">extractor</div>
+          <div class="node-pill" data-node="analizador_visual">analizador_visual</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="node-pill" data-node="enriquecedor">enriquecedor</div>
+        <div class="pipeline-arrow">→</div>
+        <div class="node-pill" data-node="evaluador">evaluador</div>
+        <div class="pipeline-arrow">→</div>
+        <div class="node-pill" data-node="analista">analista</div>
+      </div>
+    </div>
+
+    <!-- Status + terminal -->
+    <div class="status-bar">
+      <div class="status-dot running" id="status-dot"></div>
+      <span id="status-text">Running research agent…</span>
+    </div>
+
+    <div class="terminal" id="terminal">
+      <span class="log-dim">Connecting to agent…</span>
+    </div>
+
+    <div id="error-banner" class="error-banner hidden"></div>
+
+  </div>
+</section>
+
+<!-- ======================================================= -->
+<!-- REPORT                                                  -->
+<!-- ======================================================= -->
+<section id="section-report" class="hidden">
+  <div class="container">
+
+    <div class="section-header">
+      <span class="section-label">Research Report</span>
+      <div class="section-divider"></div>
+    </div>
+
+    <div class="report-meta" id="report-meta">
+      <div>
+        <div class="report-meta-objective" id="meta-objective"></div>
+        <div class="report-meta-detail" id="meta-detail"></div>
+      </div>
+      <div class="download-group">
+        <a href="/download/json" class="btn-download btn-json" download>
+          ↓ JSON
+        </a>
+        <a href="/download/md" class="btn-download btn-md" download>
+          ↓ Markdown
+        </a>
+      </div>
+    </div>
+
+    <div class="section-cards" id="section-cards"></div>
+
+  </div>
+</section>
+
+
+<script>
+// ================================================================
+// UTILITIES
+// ================================================================
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ================================================================
+// LOG COLORIZATION
+// ================================================================
+
+function classifyLog(line) {
+  const t = line.trim();
+  if (t.includes('[OK]') || t.startsWith('[SAVE]'))          return 'log-ok';
+  if (/^\s*!/.test(t) || t.startsWith('[!]'))                return 'log-error';
+  if (/^-{3}/.test(t))                                       return 'log-section';
+  if (/^={15,}/.test(t))                                     return 'log-dim';
+  if (/^[A-Z\s]{8,}$/.test(t))                               return 'log-section';
+  if (t.includes('->') || t.includes('→'))                   return 'log-info';
+  return 'log-default';
+}
+
+// ================================================================
+// PIPELINE STATE
+// ================================================================
+
+// Maps log patterns to node names
+const NODE_TRIGGERS = {
+  explorador:        ['EXPLORING NEWS'],
+  planificador:      ['PLANNING SEARCHES'],
+  buscador:          ['SEARCHING NEWS'],
+  buscador_video:    ['SEARCHING VIDEOS'],
+  extractor:         ['EXTRACTING CONTENT'],
+  analizador_visual: ['ANALYZING VIDEOS', 'REKA VISION'],
+  enriquecedor:      ['ENRICHING WITH PIONEER'],
+  evaluador:         ['EVALUATING COVERAGE'],
+  analista:          ['GENERATING REPORT'],
+};
+
+function setNodeState(name, state) {
+  const el = document.querySelector(`.node-pill[data-node="${name}"]`);
+  if (!el) return;
+  el.classList.remove('active', 'done');
+  if (state) el.classList.add(state);
+}
+
+function detectNodeFromLog(line) {
+  const upper = line.toUpperCase();
+
+  // Check for node completion: "[OK] Node completed: nodename"
+  const okMatch = line.match(/\[OK\]\s+Node completed:\s+(\w+)/);
+  if (okMatch) {
+    setNodeState(okMatch[1], 'done');
+    return;
+  }
+
+  // Check for node activation
+  for (const [node, triggers] of Object.entries(NODE_TRIGGERS)) {
+    for (const trigger of triggers) {
+      if (upper.includes(trigger)) {
+        setNodeState(node, 'active');
+        return;
+      }
+    }
+  }
+}
+
+function markAllNodesDone() {
+  document.querySelectorAll('.node-pill').forEach(el => {
+    el.classList.remove('active');
+    el.classList.add('done');
+  });
+}
+
+// ================================================================
+// TERMINAL
+// ================================================================
+
+const terminal = document.getElementById('terminal');
+let _cursor = null;
+
+function clearTerminal() {
+  terminal.innerHTML = '';
+  _cursor = null;
+}
+
+function appendLog(line) {
+  // Remove cursor if present
+  if (_cursor) { _cursor.remove(); _cursor = null; }
+
+  const span = document.createElement('span');
+  span.className = `log-line ${classifyLog(line)}`;
+  span.textContent = line;
+  terminal.appendChild(span);
+  terminal.appendChild(document.createTextNode('\n'));
+
+  // Add blinking cursor after last line
+  _cursor = document.createElement('span');
+  _cursor.className = 'cursor';
+  terminal.appendChild(_cursor);
+
+  // Auto-scroll
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function removeCursor() {
+  if (_cursor) { _cursor.remove(); _cursor = null; }
+}
+
+// ================================================================
+// REPORT RENDERING
+// ================================================================
+
+function renderReport(report) {
+  const { objective, period_start, period_end, generated_at, digest } = report;
+
+  document.getElementById('meta-objective').textContent = objective;
+  document.getElementById('meta-detail').innerHTML =
+    `<span>${period_start}</span> to <span>${period_end}</span>` +
+    ` &nbsp;·&nbsp; Generated ${new Date(generated_at).toLocaleString()}`;
+
+  const container = document.getElementById('section-cards');
+  container.innerHTML = '';
+
+  digest.sections.forEach((section, idx) => {
+    const card = document.createElement('div');
+    card.className = 'section-card';
+
+    // Number badge
+    const num = document.createElement('div');
+    num.className = 'card-number';
+    num.textContent = `Section ${idx + 1}`;
+    card.appendChild(num);
+
+    // Title
+    const title = document.createElement('h2');
+    title.className = 'card-title';
+    title.textContent = section.title;
+    card.appendChild(title);
+
+    // Article
+    const article = document.createElement('p');
+    article.className = 'card-article';
+    article.textContent = section.article;
+    card.appendChild(article);
+
+    // Sources
+    if (section.sources && section.sources.length > 0) {
+      const srcLabel = document.createElement('div');
+      srcLabel.className = 'card-section-label';
+      srcLabel.textContent = 'Sources';
+      card.appendChild(srcLabel);
+
+      const ul = document.createElement('ul');
+      ul.className = 'sources-list';
+      section.sources.forEach(url => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = url;
+        li.appendChild(a);
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
+    }
+
+    // Visual insights
+    if (section.visual_insights && section.visual_insights.length > 0) {
+      const insightSection = document.createElement('div');
+      insightSection.className = 'insights-section';
+
+      const insightLabel = document.createElement('div');
+      insightLabel.className = 'card-section-label';
+      insightLabel.textContent = 'Video Insights';
+      insightSection.appendChild(insightLabel);
+
+      section.visual_insights.forEach(vi => {
+        const ic = document.createElement('div');
+        ic.className = 'insight-card';
+
+        const header = document.createElement('div');
+        header.className = 'insight-header';
+
+        const icon = document.createElement('div');
+        icon.className = 'insight-icon';
+        icon.textContent = '▶';
+
+        const titleLink = document.createElement('a');
+        titleLink.className = 'insight-title';
+        titleLink.href = vi.video_url;
+        titleLink.target = '_blank';
+        titleLink.rel = 'noopener noreferrer';
+        titleLink.textContent = vi.video_title;
+
+        header.appendChild(icon);
+        header.appendChild(titleLink);
+
+        const analysis = document.createElement('p');
+        analysis.className = 'insight-analysis';
+        analysis.textContent = vi.analysis;
+
+        ic.appendChild(header);
+        ic.appendChild(analysis);
+        insightSection.appendChild(ic);
+      });
+
+      card.appendChild(insightSection);
+    }
+
+    container.appendChild(card);
+  });
+
+  document.getElementById('section-report').classList.remove('hidden');
+  document.getElementById('section-report').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ================================================================
+// SSE STREAM
+// ================================================================
+
+async function startStream(objective, startDate, endDate, context) {
+  let buffer = '';
+
+  try {
+    const response = await fetch('/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        objective,
+        start_date: startDate,
+        end_date: endDate,
+        context,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE events are separated by double newlines
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop() ?? '';
+
+      for (const part of parts) {
+        for (const raw of part.split('\n')) {
+          const line = raw.trim();
+          if (!line.startsWith('data: ')) continue;
+          let event;
+          try {
+            event = JSON.parse(line.slice(6));
+          } catch {
+            continue;
+          }
+          handleEvent(event);
+        }
+      }
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      handleEvent({ type: 'error', message: `Connection error: ${err.message}` });
+    }
+  }
+}
+
+function handleEvent(event) {
+  if (event.type === 'log') {
+    appendLog(event.line);
+    detectNodeFromLog(event.line);
+
+  } else if (event.type === 'done') {
+    removeCursor();
+    appendLog('[OK] Research complete.');
+    markAllNodesDone();
+    setStatus('done', 'Research complete');
+    setLaunchEnabled(true);
+    renderReport(event.report);
+
+  } else if (event.type === 'error') {
+    removeCursor();
+    appendLog(`! ${event.message}`);
+    setStatus('error', 'Error — see log above');
+    showErrorBanner(event.message);
+    setLaunchEnabled(true);
+  }
+}
+
+// ================================================================
+// UI STATE HELPERS
+// ================================================================
+
+function setStatus(state, text) {
+  const dot = document.getElementById('status-dot');
+  dot.className = `status-dot ${state}`;
+  document.getElementById('status-text').textContent = text;
+}
+
+function showErrorBanner(msg) {
+  const banner = document.getElementById('error-banner');
+  banner.textContent = msg;
+  banner.classList.remove('hidden');
+}
+
+function setLaunchEnabled(enabled) {
+  const btn = document.getElementById('btn-launch');
+  btn.disabled = !enabled;
+  btn.textContent = enabled ? 'Launch Research \u00a0→' : 'Running…';
+}
+
+// ================================================================
+// FORM SUBMISSION
+// ================================================================
+
+function launchResearch() {
+  const objective = document.getElementById('objective').value.trim();
+  const startDate  = document.getElementById('start-date').value;
+  const endDate    = document.getElementById('end-date').value;
+  const context    = document.getElementById('context').value.trim();
+
+  if (!objective) {
+    document.getElementById('objective').focus();
+    return;
+  }
+  if (!startDate || !endDate) {
+    alert('Please select a start and end date.');
+    return;
+  }
+  if (startDate > endDate) {
+    alert('Start date must be before end date.');
+    return;
+  }
+
+  // Reset state
+  document.getElementById('error-banner').classList.add('hidden');
+  document.getElementById('section-report').classList.add('hidden');
+  document.querySelectorAll('.node-pill').forEach(el => el.className = 'node-pill');
+  clearTerminal();
+
+  // Show logs section
+  document.getElementById('section-logs').classList.remove('hidden');
+  document.getElementById('section-logs').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  setStatus('running', 'Running research agent…');
+  setLaunchEnabled(false);
+
+  startStream(objective, startDate, endDate, context);
+}
+
+// ================================================================
+// DEFAULT DATE RANGE (last 30 days)
+// ================================================================
+
+(function setDefaultDates() {
+  const today = new Date();
+  const prior = new Date(today);
+  prior.setDate(today.getDate() - 30);
+
+  const fmt = d => d.toISOString().slice(0, 10);
+  document.getElementById('end-date').value   = fmt(today);
+  document.getElementById('start-date').value = fmt(prior);
+})();
+</script>
+
+</body>
+</html>

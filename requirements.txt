@@ -1,4 +1,6 @@
 # Core dependencies
+fastapi
+uvicorn[standard]
 tavily-python
 python-dotenv
 langchain-openai
