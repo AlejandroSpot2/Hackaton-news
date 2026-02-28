@@ -48,6 +48,8 @@ class TestFullAgentFlow:
             "buscador",
             "extractor",
             "enriquecedor",
+            "buscador_video",
+            "analizador_visual",
             "evaluador",
             "analista",
         ]

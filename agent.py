@@ -67,19 +67,13 @@ workflow.set_entry_point("explorador")
 # Define edges
 workflow.add_edge("explorador", "planificador")
 
-# FAN-OUT: planificador launches both branches in parallel
+# Sequential flow to avoid InvalidUpdateError (raw_content can only receive one value per step)
+# Text branch first, then video branch, then evaluator
 workflow.add_edge("planificador", "buscador")
-workflow.add_edge("planificador", "buscador_video")
-
-# Text branch: buscador -> extractor -> enriquecedor (Pioneer AI)
 workflow.add_edge("buscador", "extractor")
 workflow.add_edge("extractor", "enriquecedor")
-
-# Video branch
+workflow.add_edge("enriquecedor", "buscador_video")
 workflow.add_edge("buscador_video", "analizador_visual")
-
-# FAN-IN: evaluador waits for both enriquecedor and analizador_visual
-workflow.add_edge("enriquecedor", "evaluador")
 workflow.add_edge("analizador_visual", "evaluador")
 
 # Conditional edge from evaluator — retry only re-runs text branch, never video
